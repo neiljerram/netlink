@@ -500,6 +500,28 @@ func RouteList(link Link, family int) ([]Route, error) {
 	return pkgHandle.RouteList(link, family)
 }
 
+// DebugRoutes returns all routes in the system.
+func (h *Handle) DebugRoutes(family int) ([]Route, error) {
+	req := h.newNetlinkRequest(unix.RTM_GETROUTE, unix.NLM_F_DUMP)
+	infmsg := nl.NewIfInfomsg(family)
+	req.AddData(infmsg)
+
+	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWROUTE)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []Route
+	for _, m := range msgs {
+		route, err := deserializeRoute(m)
+		if err != nil {
+			route = Route{LinkIndex: -1}
+		}
+		res = append(res, route)
+	}
+	return res, nil
+}
+
 // RouteList gets a list of routes in the system.
 // Equivalent to: `ip route show`.
 // The list can be filtered by link and ip family.
